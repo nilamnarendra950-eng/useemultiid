@@ -11,7 +11,6 @@ import logging
 from datetime import datetime
 import pytz
 
-# ================== FILE LOGGING ==================
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s | %(message)s',
@@ -23,7 +22,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-app.secret_key = "sujal_hawk_single_gc_longterm_2026"
+app.secret_key = "sujal_hawk_final_2026"
 
 IST = pytz.timezone('Asia/Kolkata')
 
@@ -65,8 +64,7 @@ def log(msg):
     logger.info(full_msg)
 
 def challenge_code_handler(username, choice):
-    log(f"📱 CHALLENGE for {username} → {choice}")
-    log("⚠️ Challenge detected. Please handle manually on phone if needed.")
+    log(f"📱 CHALLENGE for {username}")
     return None
 
 def get_client(acc, max_attempts=4):
@@ -83,7 +81,7 @@ def get_client(acc, max_attempts=4):
             try:
                 cl.load_settings(session_file)
                 cl.get_timeline_feed()
-                log(f"✅ Session loaded (Attempt {attempt})")
+                log(f"✅ Session loaded")
                 return cl
             except:
                 pass
@@ -91,20 +89,20 @@ def get_client(acc, max_attempts=4):
         try:
             cl.login(acc["username"], acc["password"])
             cl.dump_settings(session_file)
-            log(f"✅ LOGIN SUCCESS (Attempt {attempt})")
+            log(f"✅ LOGIN SUCCESS")
             return cl
         except ConsentRequired:
-            log(f"🔐 CONSENT REQUIRED → Trying auto accept...")
+            log("🔐 CONSENT REQUIRED → Auto accept try...")
             try:
                 cl.accept_consent()
                 cl.dump_settings(session_file)
-                log("✅ CONSENT ACCEPTED AUTOMATICALLY")
+                log("✅ CONSENT ACCEPTED")
                 return cl
             except:
                 log("⚠️ Please accept consent manually on phone")
                 return None
         except Exception as e:
-            log(f"❌ LOGIN FAILED (Attempt {attempt}) | {str(e)[:60]}")
+            log(f"❌ LOGIN FAILED | {str(e)[:60]}")
             time.sleep(15 * attempt)
     return None
 
@@ -125,7 +123,7 @@ def change_name(cl, thread_id, new_name):
 def health_check():
     while True:
         if state["running"]:
-            log("💓 HEARTBEAT — Script is alive (Long-term mode)")
+            log("💓 HEARTBEAT — Script alive")
         time.sleep(1800)
 
 def bomber():
@@ -169,9 +167,7 @@ def bomber():
                 now_ist = datetime.now(IST).strftime("%I:%M %p")
                 new_name = f"{base} {symbol} {emoji} • {now_ist}"
                 if change_name(cl, cfg["thread_id"], new_name):
-                    log(f"NAME CHANGED (Acc: {username}) → {new_name}")
-                else:
-                    log(f"NAME CHANGE FAILED (Acc: {username})")
+                    log(f"NAME CHANGED → {new_name}")
                 name_index += 1
                 time.sleep(cfg["name_change_delay"])
 
@@ -179,22 +175,17 @@ def bomber():
             time.sleep(cfg["switch_delay"])
 
         except LoginRequired:
-            log(f"🔐 Session expired for {username} → Retrying relogin...")
+            log(f"🔐 Session expired → Retrying...")
             new_cl = get_client({"username": username, "password": cfg["accounts"][acc_index]["password"]})
             if new_cl:
                 clients[username] = new_cl
-                log(f"✅ RELOGIN SUCCESS for {username}")
-            else:
-                log(f"❌ RELOGIN FAILED for {username} → Skipping")
             time.sleep(25)
-
         except Exception as e:
-            error_str = str(e).lower()
-            if "we're sorry" in error_str or "rate" in error_str or "limit" in error_str:
-                log("⏳ RATE LIMIT → Waiting 3 minutes...")
+            if "we're sorry" in str(e).lower() or "rate" in str(e).lower():
+                log("⏳ RATE LIMIT → Waiting 3 minutes")
                 time.sleep(180)
             else:
-                log(f"ERROR ({username}) → {str(e)[:60]}")
+                log(f"ERROR → {str(e)[:60]}")
                 time.sleep(12)
 
 @app.route("/")
@@ -206,7 +197,7 @@ def start():
     global state
     state["running"] = False
     time.sleep(1)
-    state = {"running": True, "sent": 0, "logs": ["LONG-TERM SINGLE GC + MULTI ACCOUNT STARTED"], "start_time": time.time()}
+    state = {"running": True, "sent": 0, "logs": ["LONG-TERM STARTED"], "start_time": time.time()}
 
     raw_accounts = request.form["accounts"].strip().split("\n")
     cfg["accounts"] = []
@@ -225,8 +216,6 @@ def start():
     cfg["cycle_break"] = int(request.form.get("cycle_break", "300"))
 
     threading.Thread(target=bomber, daemon=True).start()
-    log(f"STARTED WITH {len(cfg['accounts'])} ACCOUNTS | Single GC + Long-term Mode")
-
     return jsonify({"ok": True})
 
 @app.route("/stop")
