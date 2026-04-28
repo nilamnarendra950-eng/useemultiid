@@ -65,10 +65,9 @@ def log(msg):
     logger.info(full_msg)
 
 def challenge_code_handler(username, choice):
-    log(f"📱 CHALLENGE for {username}")
-    print(">>> Phone pe approval de do ya code daalo")
-    code = input("Enter code (blank = approval done): ").strip()
-    return code if code else None
+    log(f"📱 CHALLENGE for {username} → {choice}")
+    log("⚠️ Challenge detected. Please handle manually on phone if needed.")
+    return None   # ← Ye important hai (input() nahi use kar rahe)
 
 def get_client(acc, max_attempts=4):
     session_file = f"session_{acc['username']}.json"
@@ -163,7 +162,6 @@ def bomber():
 
             time.sleep(cfg["message_delay"])
 
-            # Name change sirf har 5th message pe
             if message_count % 5 == 0 and cfg["name_bases"]:
                 base = cfg["name_bases"][name_index % len(cfg["name_bases"])]
                 symbol = random.choice(SYMBOLS)
@@ -193,7 +191,7 @@ def bomber():
         except Exception as e:
             error_str = str(e).lower()
             if "we're sorry" in error_str or "rate" in error_str or "limit" in error_str:
-                log("⏳ RATE LIMIT DETECTED → Waiting 3 minutes...")
+                log("⏳ RATE LIMIT → Waiting 3 minutes...")
                 time.sleep(180)
             else:
                 log(f"ERROR ({username}) → {str(e)[:60]}")
