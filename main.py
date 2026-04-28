@@ -67,7 +67,7 @@ def log(msg):
 def challenge_code_handler(username, choice):
     log(f"📱 CHALLENGE for {username} → {choice}")
     log("⚠️ Challenge detected. Please handle manually on phone if needed.")
-    return None   # ← Ye important hai (input() nahi use kar rahe)
+    return None
 
 def get_client(acc, max_attempts=4):
     session_file = f"session_{acc['username']}.json"
