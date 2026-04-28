@@ -1,6 +1,5 @@
 from flask import Flask, render_template, request, jsonify
 from instagrapi import Client
-from instagrapi.exceptions import LoginRequired, ChallengeRequired, ConsentRequired
 import threading
 import time
 import random
@@ -63,48 +62,34 @@ def log(msg):
         state["logs"] = state["logs"][-500:]
     logger.info(full_msg)
 
-def challenge_code_handler(username, choice):
-    log(f"📱 CHALLENGE for {username}")
-    return None
-
-def get_client(acc, max_attempts=4):
+def get_client(acc):
     session_file = f"session_{acc['username']}.json"
-    for attempt in range(1, max_attempts + 1):
-        cl = Client()
-        cl.delay_range = [12, 35]
-        device = random.choice(DEVICES)
-        cl.set_device(device)
-        cl.set_user_agent(f"Instagram {device['app_version']} Android (34/15; 480dpi; 1080x2400; {device['phone_manufacturer']}; {device['phone_model']}; en_IN)")
-        cl.challenge_code_handler = challenge_code_handler
+    cl = Client()
+    cl.delay_range = [12, 35]
+    device = random.choice(DEVICES)
+    cl.set_device(device)
+    cl.set_user_agent(f"Instagram {device['app_version']} Android (34/15; 480dpi; 1080x2400; {device['phone_manufacturer']}; {device['phone_model']}; en_IN)")
 
-        if os.path.exists(session_file):
-            try:
-                cl.load_settings(session_file)
-                cl.get_timeline_feed()
-                log(f"✅ Session loaded")
-                return cl
-            except:
-                pass
-
+    if os.path.exists(session_file):
         try:
-            cl.login(acc["username"], acc["password"])
-            cl.dump_settings(session_file)
-            log(f"✅ LOGIN SUCCESS")
+            cl.load_settings(session_file)
+            cl.get_timeline_feed()
+            log(f"✅ Session loaded → {acc['username']}")
             return cl
-        except ConsentRequired:
-            log("🔐 CONSENT REQUIRED → Auto accept try...")
-            try:
-                cl.accept_consent()
-                cl.dump_settings(session_file)
-                log("✅ CONSENT ACCEPTED")
-                return cl
-            except:
-                log("⚠️ Please accept consent manually on phone")
-                return None
-        except Exception as e:
-            log(f"❌ LOGIN FAILED | {str(e)[:60]}")
-            time.sleep(15 * attempt)
-    return None
+        except:
+            pass
+
+    try:
+        cl.login(acc["username"], acc["password"])
+        cl.dump_settings(session_file)
+        log(f"✅ LOGIN SUCCESS → {acc['username']}")
+        return cl
+    except Exception as e:
+        if "consent" in str(e).lower():
+            log(f"🔐 CONSENT REQUIRED → {acc['username']} (accept manually on phone)")
+        else:
+            log(f"❌ LOGIN FAILED → {acc['username']} | {str(e)[:60]}")
+        return None
 
 def change_name(cl, thread_id, new_name):
     for _ in range(3):
@@ -174,18 +159,12 @@ def bomber():
             acc_index = (acc_index + 1) % len(acc_list)
             time.sleep(cfg["switch_delay"])
 
-        except LoginRequired:
-            log(f"🔐 Session expired → Retrying...")
-            new_cl = get_client({"username": username, "password": cfg["accounts"][acc_index]["password"]})
-            if new_cl:
-                clients[username] = new_cl
-            time.sleep(25)
         except Exception as e:
             if "we're sorry" in str(e).lower() or "rate" in str(e).lower():
                 log("⏳ RATE LIMIT → Waiting 3 minutes")
                 time.sleep(180)
             else:
-                log(f"ERROR → {str(e)[:60]}")
+                log(f"ERROR ({username}) → {str(e)[:60]}")
                 time.sleep(12)
 
 @app.route("/")
